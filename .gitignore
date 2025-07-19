@@ -1,0 +1,38 @@
+# Python相关缓存文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 数据集原始文件
+data/raw/
+data/processed/
+
+# 训练模型文件
+weights/*.pth
+
+# 训练日志文件
+logs/*.log
+logs/*.csv
+
+# 训练过程中保存的tensorboard等缓存
+runs/
+
+# 虚拟环境文件
+venv/
+.env
+*.env
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# VSCode/PyCharm等IDE配置
+.vscode/
+.idea/
+
+# Gradio/推理时缓存
+*.gradio/
+
+# 其他系统文件
+.DS_Store
+Thumbs.db
