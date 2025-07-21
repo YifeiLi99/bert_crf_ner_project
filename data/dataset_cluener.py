@@ -97,9 +97,10 @@ class CluenerDataset(Dataset):
             label_ids += [self.label2id['O']] * padding_length
         #长度太长，截断
         else:
-            input_ids = input_ids[:self.max_length]
-            attention_mask = attention_mask[:self.max_length]
-            label_ids = label_ids[:self.max_length]
+            # 优化截断策略：保留 [CLS] 和 [SEP]，截断中间部分
+            input_ids = input_ids[:self.max_length - 1] + [self.tokenizer.convert_tokens_to_ids('[SEP]')]
+            attention_mask = attention_mask[:self.max_length - 1] + [1]
+            label_ids = label_ids[:self.max_length - 1] + [self.label2id['O']]
 
         #输出。token的索引，那些是有效token，标签
         return {
@@ -108,7 +109,8 @@ class CluenerDataset(Dataset):
             'labels': label_ids
         }
 
-
+#把多个样本拼成一个样本
+#已经padding了，这里单纯打包
 def collate_fn(batch):
     input_ids = [item['input_ids'] for item in batch]
     attention_mask = [item['attention_mask'] for item in batch]
