@@ -10,9 +10,10 @@ class BertCRFModel(nn.Module):
         super(BertCRFModel, self).__init__()
         self.label2id = label2id
         self.id2label = {v: k for k, v in label2id.items()}
+        #计算类别数，用于分类器输出维度
         self.num_labels = len(label2id)
 
-        # bert backbone
+        #调用 Huggingface 的 BertModel 加载预训练BERT
         self.bert = BertModel.from_pretrained(pretrained_model_name)
 
         # dropout防止过拟合
@@ -35,6 +36,7 @@ class BertCRFModel(nn.Module):
 
         if labels is not None:
             # 训练模式，返回CRF损失，torchcrf支持直接reduction
+            #crf返回对数似然值，越大越好（负无穷到0）。加负号让整体越小越好（0到正无穷）
             loss = -self.crf(emissions, labels, mask=attention_mask.bool(), reduction='mean')
             return loss
         else:
