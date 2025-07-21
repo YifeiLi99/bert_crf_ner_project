@@ -87,27 +87,28 @@ def evaluate():
             attention_mask = torch.tensor(batch['attention_mask']).to(DEVICE)
             labels = torch.tensor(batch['labels']).to(DEVICE)
 
+            # loss按padding算
             loss = model(input_ids, attention_mask, labels)
             total_loss += loss.item()
 
+            # decode出来是有效token长度的预测
             preds = model(input_ids, attention_mask)  # List[List[int]]
-            preds = [p[:labels.shape[1]] for p in preds]
-            all_preds.extend(preds)
-            all_labels.extend(labels.cpu().tolist())
+
+            # 遍历每条句子，按mask裁剪labels，只计算有效token
+            for pred_seq, label_seq, mask_seq in zip(preds, labels.cpu().tolist(), attention_mask.cpu().tolist()):
+                valid_len = sum(mask_seq)
+                all_preds.extend(pred_seq[:valid_len])
+                all_labels.extend(label_seq[:valid_len])
 
     avg_loss = total_loss / len(val_loader)
 
-    # 扁平化用于f1_score
-    flat_preds = np.concatenate(all_preds)
-    flat_labels = np.concatenate(all_labels)
+    f1 = f1_score(all_labels, all_preds, average='macro', zero_division=0)
 
-    f1 = f1_score(flat_labels, flat_preds, average='macro', zero_division=0)
-
-    report = classification_report(flat_labels, flat_preds, target_names=list(label2id.keys()), zero_division=0)
+    report = classification_report(all_labels, all_preds, target_names=list(label2id.keys()), zero_division=0)
 
     print(f"\nClassification Report:\n{report}")
 
-    cm = confusion_matrix(flat_labels, flat_preds)
+    cm = confusion_matrix(all_labels, all_preds)
     print(f"Confusion Matrix:\n{cm}")
 
     return avg_loss, f1
