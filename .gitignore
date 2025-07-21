@@ -9,11 +9,13 @@ data/raw/
 data/processed/
 
 # 训练模型文件
-weights/*.pth
+weights/
+*.pth
 
 # 训练日志文件
-logs/*.log
-logs/*.csv
+logs/
+*.log
+*.csv
 
 # 训练过程中保存的tensorboard等缓存
 runs/
