@@ -1,7 +1,7 @@
 import json
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertTokenizer
-from config import label2id_path, processed_data_dir
+from config import label2id_path, processed_data_dir, max_length
 import os
 
 #把bio变成bert可用格式
@@ -127,7 +127,8 @@ if __name__ == "__main__":
     dataset = CluenerDataset(
         data_file=os.path.join(processed_data_dir, "train.txt"),
         label2id_file=label2id_path,
-        tokenizer_name="bert-base-chinese"
+        tokenizer_name="bert-base-chinese",
+        max_length=max_length
     )
     dataloader = DataLoader(dataset, batch_size=2, collate_fn=collate_fn)
 
