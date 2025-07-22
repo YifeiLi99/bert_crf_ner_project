@@ -24,8 +24,9 @@ fastapi_service_path = os.path.join(BASE_DIR, "inference_service", "fastapi_serv
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # 训练超参数
-num_epochs = 10
-batch_size = 32
+num_epochs = 20
+#64-128为最佳区间
+batch_size = 64
 learning_rate = 5e-5
 #最大语句长度
 max_length=128

@@ -11,11 +11,14 @@ from config import processed_data_dir, label2id_path, weights_dir, logs_dir, num
 import json
 from tqdm import tqdm
 from sklearn.metrics import f1_score, classification_report, confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # ---------------------- 参数 ----------------------
-CHECKPOINT_PATH = os.path.join(weights_dir, 'best_model.pt')
-LOG_PATH = os.path.join(logs_dir, 'train_log.txt')
-TENSORBOARD_LOG_DIR = os.path.join(logs_dir, 'tensorboard')
+CHECKPOINT_PATH = os.path.join(weights_dir, 'best_model001.pt')
+LOG_PATH = os.path.join(logs_dir, 'train_log001.txt')
+TENSORBOARD_LOG_DIR = os.path.join(logs_dir, 'tensorboard001')
+cm_save_path = os.path.join(logs_dir, 'confusion_matrix001')
 os.makedirs(weights_dir, exist_ok=True)
 os.makedirs(logs_dir, exist_ok=True)
 
@@ -47,7 +50,8 @@ total_steps = len(train_loader) * num_epochs
 scheduler = get_scheduler(
     name="linear",
     optimizer=optimizer,
-    num_warmup_steps=int(0.1 * total_steps),
+    #BERT+CRF组合极容易初期震荡，0.2-0.4的预热比较正常
+    num_warmup_steps=int(0.3 * total_steps),
     num_training_steps=total_steps
 )
 
@@ -71,11 +75,11 @@ class EarlyStopping:
     def should_stop(self):
         return self.counter >= self.patience
 
+#配合20的epoch，5-7的耐心值
+early_stopper = EarlyStopping(patience=7)
 
-early_stopper = EarlyStopping(patience=3)
 
-
-# ---------------------- 评估函数 ----------------------
+# ---------------------- 评估函数（改造版） ----------------------
 def evaluate():
     model.eval()
     total_loss = 0
@@ -93,24 +97,42 @@ def evaluate():
             # decode出来是有效token长度的预测
             preds = model(input_ids, attention_mask)  # List[List[int]]
 
-            # 遍历每条句子，按mask裁剪labels，只计算有效token
+            # 按mask裁剪labels，只计算有效token
             for pred_seq, label_seq, mask_seq in zip(preds, labels.cpu().tolist(), attention_mask.cpu().tolist()):
                 valid_len = sum(mask_seq)
                 all_preds.extend(pred_seq[:valid_len])
                 all_labels.extend(label_seq[:valid_len])
 
     avg_loss = total_loss / len(val_loader)
-
     f1 = f1_score(all_labels, all_preds, average='macro', zero_division=0)
 
     report = classification_report(all_labels, all_preds, target_names=list(label2id.keys()), zero_division=0)
+    print(f"\nClassification Report (Val F1 = {f1:.4f}):\n{report}")
 
-    print(f"\nClassification Report:\n{report}")
-
+    # 混淆矩阵绘图
     cm = confusion_matrix(all_labels, all_preds)
-    print(f"Confusion Matrix:\n{cm}")
+    fig, ax = plt.subplots(figsize=(10, 8))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=list(label2id.keys()), yticklabels=list(label2id.keys()), ax=ax)
+    plt.ylabel('True Labels')
+    plt.xlabel('Predicted Labels')
+    plt.title(f'Confusion Matrix (F1={f1:.4f})')
+
+    # 保存图片
+    cm_save_picture = os.path.join(cm_save_path, f"confusion_matrix_epoch_{epoch + 1}.png")
+    plt.tight_layout()
+    plt.savefig(cm_save_picture)
+    plt.close()
+
+    print(f"混淆矩阵图已保存: {cm_save_picture}")
+
+    # TensorBoard也可同步记录混淆矩阵图片（可选）
+    if tb_writer is not None:
+        import torchvision
+        cm_img = torchvision.transforms.ToTensor()(plt.imread(cm_save_picture))
+        tb_writer.add_image(f"Confusion_Matrix/Epoch_{epoch+1}", cm_img, epoch)
 
     return avg_loss, f1
+
 
 
 # --------------------- 主程序 -------------------------
