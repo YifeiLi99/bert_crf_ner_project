@@ -26,14 +26,24 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # 训练超参数
 num_epochs = 20
 #64-128为最佳区间
-batch_size = 64
-learning_rate = 5e-5
+#4060跑不动了
+batch_size = 32
+learning_rate = 2e-5
 #最大语句长度
 max_length=128
+
 #bert预训练模型名
-pretrained_model_name = 'hfl/chinese-roberta-wwm-ext'
+#大模型太慢了
+#pretrained_model_name = 'hfl/chinese-roberta-wwm-ext-large'
+#可以一试，差不太多
+#pretrained_model_name = 'hfl/chinese-roberta-wwm-ext'
+#稳定
+pretrained_model_name = 'hfl/chinese-macbert-base'
+
 #KL 损失默认加权系数
-kl_weight = 5.0
+kl_weight = 3.0
+#预热系数
+warmup = 0.3
 
 # 标签文件
 label2id_path = os.path.join(processed_data_dir, "label2id.json")
