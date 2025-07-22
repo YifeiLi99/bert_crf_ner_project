@@ -2,22 +2,6 @@ from collections import Counter
 import os
 from config import processed_data_dir
 
-def read_sentences(train_file):
-    sentences = []
-    sentence = []
-    with open(train_file, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line == "":
-                if sentence:
-                    sentences.append(sentence)
-                    sentence = []
-            else:
-                sentence.append(line)
-        if sentence:
-            sentences.append(sentence)
-    return sentences
-
 
 def count_label_distribution(train_file, small_labels=None):
     """
@@ -39,29 +23,63 @@ def count_label_distribution(train_file, small_labels=None):
     return label_counter
 
 
-def oversample_dataset(train_file, output_file, small_labels, small_multiplier=4, normal_multiplier=1):
+def read_sentences(train_file):
     """
-    根据小类别标签对训练集进行过采样
+    按空行分句，返回句子列表
+    """
+    sentences = []
+    sentence = []
+    with open(train_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line == "":
+                if sentence:
+                    sentences.append(sentence)
+                    sentence = []
+            else:
+                sentence.append(line)
+        if sentence:
+            sentences.append(sentence)
+    return sentences
 
-    :param train_file: 原始训练集路径
-    :param output_file: 过采样后输出文件路径
-    :param small_labels: 小类别标签列表
-    :param small_multiplier: 小类别样本重复倍数
-    :param normal_multiplier: 普通样本重复倍数
+
+def get_sampling_rules(label_counter):
+    """
+    根据类别统计次数动态生成采样倍率字典
+    """
+    sampling_rules = {}
+    for label, count in label_counter.items():
+        if count > 10000:
+            sampling_rules[label] = 1
+        elif count > 5000:
+            sampling_rules[label] = 2
+        elif count > 1000:
+            sampling_rules[label] = 3
+        else:
+            sampling_rules[label] = 4
+    print("\n类别采样倍率:")
+    for label, mult in sampling_rules.items():
+        print(f"{label}: 重复 {mult} 倍")
+    return sampling_rules
+
+
+def oversample_dataset(train_file, output_file, sampling_rules):
+    """
+    根据类别动态采样规则对训练集进行过采样
     """
     sentences = read_sentences(train_file)
     new_sentences = []
 
     for sentence in sentences:
         labels = [line.split()[-1] for line in sentence]
-        repeat = small_multiplier if any(label in small_labels for label in labels) else normal_multiplier
+        repeat = max([sampling_rules.get(label, 1) for label in labels])
         new_sentences.extend([sentence] * repeat)
 
     with open(output_file, 'w', encoding='utf-8') as f:
         for sentence in new_sentences:
             for line in sentence:
-                f.write(f"{line}\n")  # 正确的格式化字符串
-            f.write("\n")  # 空行分隔句子
+                f.write(f"{line}\n")
+            f.write("\n")
     print(f"已生成过采样训练集：{output_file}，总句子数：{len(new_sentences)}")
 
 
@@ -69,16 +87,11 @@ if __name__ == "__main__":
     train_file = os.path.join(processed_data_dir, "train.txt")
     output_file = os.path.join(processed_data_dir, "train_oversample.txt")
 
-    small_labels = ['B-book', 'I-book', 'B-scene', 'I-scene', 'B-address', 'I-address']
-
     label_counter = count_label_distribution(train_file)
     print("所有类别分布:")
     for label, count in label_counter.items():
         print(f"{label}: {count}")
 
-    small_counter = count_label_distribution(train_file, small_labels=small_labels)
-    print("\n小类别分布:")
-    for label, count in small_counter.items():
-        print(f"{label}: {count}")
+    sampling_rules = get_sampling_rules(label_counter)
 
-    oversample_dataset(train_file, output_file, small_labels, small_multiplier=4, normal_multiplier=1)
+    oversample_dataset(train_file, output_file, sampling_rules)

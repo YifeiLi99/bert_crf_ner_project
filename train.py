@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # ---------------------- 参数 ----------------------
-CHECKPOINT_PATH = os.path.join(weights_dir, 'best_model004.pt')
-LOG_PATH = os.path.join(logs_dir, 'train_log004.txt')
-TENSORBOARD_LOG_DIR = os.path.join(logs_dir, 'tensorboard004')
-cm_save_path = os.path.join(logs_dir, 'confusion_matrix004')
+CHECKPOINT_PATH = os.path.join(weights_dir, 'best_model004_final.pt')
+LOG_PATH = os.path.join(logs_dir, 'train_log004_final.txt')
+TENSORBOARD_LOG_DIR = os.path.join(logs_dir, 'tensorboard004_final')
+cm_save_path = os.path.join(logs_dir, 'confusion_matrix004_final')
 os.makedirs(weights_dir, exist_ok=True)
 os.makedirs(logs_dir, exist_ok=True)
 os.makedirs(cm_save_path, exist_ok=True)
@@ -33,7 +33,7 @@ with open(label2id_path, 'r', encoding='utf-8') as f:
 id2label = {v: k for k, v in label2id.items()}
 
 # ---------------------- 数据集 ----------------------
-train_file = os.path.join(processed_data_dir, 'train.txt')
+train_file = os.path.join(processed_data_dir, 'hard_samples.txt')
 val_file = os.path.join(processed_data_dir, 'dev.txt')
 train_dataset = CluenerDataset(train_file, label2id_path, pretrained_model_name, max_length)
 val_dataset = CluenerDataset(val_file, label2id_path, pretrained_model_name, max_length)
@@ -44,6 +44,11 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, colla
 # ---------------------- 模型 ----------------------
 model = BertCRFModel(label2id, pretrained_model_name=pretrained_model_name, kl_weight=kl_weight)
 model.to(DEVICE)
+
+#读取训练好的模型继续训练
+#不用就给注销掉
+#model.load_state_dict(torch.load(os.path.join(weights_dir, "best_model004_oversample.pt"), map_location=DEVICE))
+#print("成功加载，正在进行进行hard samples finetune训练")
 
 # ---------------------- 优化器 & Scheduler ----------------------
 optimizer = AdamW(model.parameters(), lr=learning_rate)
@@ -77,7 +82,7 @@ class EarlyStopping:
         return self.counter >= self.patience
 
 #配合20的epoch，5-7的耐心值
-early_stopper = EarlyStopping(patience=3)
+early_stopper = EarlyStopping(patience=1)
 
 
 # ---------------------- 评估函数（改造版） ----------------------
