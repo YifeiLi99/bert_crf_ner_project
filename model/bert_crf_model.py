@@ -2,16 +2,18 @@ import torch
 import torch.nn as nn
 from transformers import BertModel
 from torchcrf import CRF  # 当前使用 torchcrf (kmkurn版)
+import torch.nn.functional as F  # 新增，用于R-Drop KL散度计算
 
 
 # bert + crf模型
 class BertCRFModel(nn.Module):
-    def __init__(self, label2id, pretrained_model_name='bert-base-chinese', dropout_prob=0.1):
+    def __init__(self, label2id, pretrained_model_name='bert-base-chinese', dropout_prob=0.1, kl_weight=5.0):
         super(BertCRFModel, self).__init__()
         self.label2id = label2id
         self.id2label = {v: k for k, v in label2id.items()}
         #计算类别数，用于分类器输出维度
         self.num_labels = len(label2id)
+        self.kl_weight = kl_weight  # 新增，R-Drop中KL散度的权重系数
 
         #调用 Huggingface 的 BertModel 加载预训练BERT
         self.bert = BertModel.from_pretrained(pretrained_model_name)
@@ -38,7 +40,26 @@ class BertCRFModel(nn.Module):
             # 训练模式，返回CRF损失，torchcrf支持直接reduction
             #crf返回对数似然值，越大越好（负无穷到0）。加负号让整体越小越好（0到正无穷）
             loss = -self.crf(emissions, labels, mask=attention_mask.bool(), reduction='mean')
-            return loss
+
+            # ========== R-Drop新增逻辑 ========== #
+            # 第二次forward，获得第二份emissions
+            outputs2 = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+            sequence_output2 = self.dropout(outputs2.last_hidden_state)
+            emissions2 = self.classifier(sequence_output2)
+
+            # 第二次CRF loss
+            loss2 = -self.crf(emissions2, labels, mask=attention_mask.bool(), reduction='mean')
+
+            # KL散度 loss，计算两个forward输出的分布差异
+            log_probs1 = F.log_softmax(emissions, dim=-1)
+            log_probs2 = F.log_softmax(emissions2, dim=-1)
+            kl_loss = F.kl_div(log_probs1, log_probs2, log_target=True, reduction='batchmean') + \
+                      F.kl_div(log_probs2, log_probs1, log_target=True, reduction='batchmean')
+            kl_loss = kl_loss / 2
+
+            # 总loss = 两次CRF loss平均 + KL loss加权
+            total_loss = (loss + loss2) / 2 + self.kl_weight * kl_loss
+            return total_loss
         else:
             # 推理模式，返回预测路径（不需要labels）
             prediction = self.crf.decode(emissions, mask=attention_mask.bool())

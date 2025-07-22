@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from data.dataset_cluener import CluenerDataset, collate_fn
 from model.bert_crf_model import BertCRFModel
 from config import processed_data_dir, label2id_path, weights_dir, logs_dir, num_epochs, batch_size, learning_rate, \
-    max_length, pretrained_model_name, DEVICE
+    max_length, pretrained_model_name, DEVICE, kl_weight
 import json
 from tqdm import tqdm
 from sklearn.metrics import f1_score, classification_report, confusion_matrix
@@ -15,12 +15,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # ---------------------- 参数 ----------------------
-CHECKPOINT_PATH = os.path.join(weights_dir, 'best_model001.pt')
-LOG_PATH = os.path.join(logs_dir, 'train_log001.txt')
-TENSORBOARD_LOG_DIR = os.path.join(logs_dir, 'tensorboard001')
-cm_save_path = os.path.join(logs_dir, 'confusion_matrix001')
+CHECKPOINT_PATH = os.path.join(weights_dir, 'best_model002.pt')
+LOG_PATH = os.path.join(logs_dir, 'train_log002.txt')
+TENSORBOARD_LOG_DIR = os.path.join(logs_dir, 'tensorboard002')
+cm_save_path = os.path.join(logs_dir, 'confusion_matrix002')
 os.makedirs(weights_dir, exist_ok=True)
 os.makedirs(logs_dir, exist_ok=True)
+os.makedirs(cm_save_path, exist_ok=True)
 
 # ---------------------- 日志 ----------------------
 tb_writer = SummaryWriter(log_dir=TENSORBOARD_LOG_DIR)
@@ -37,11 +38,11 @@ val_file = os.path.join(processed_data_dir, 'dev.txt')
 train_dataset = CluenerDataset(train_file, label2id_path, pretrained_model_name, max_length)
 val_dataset = CluenerDataset(val_file, label2id_path, pretrained_model_name, max_length)
 
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, num_workers=4, pin_memory=True)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn, num_workers=4, pin_memory=True)
 
 # ---------------------- 模型 ----------------------
-model = BertCRFModel(label2id, pretrained_model_name=pretrained_model_name)
+model = BertCRFModel(label2id, pretrained_model_name=pretrained_model_name, kl_weight=kl_weight)
 model.to(DEVICE)
 
 # ---------------------- 优化器 & Scheduler ----------------------

@@ -31,7 +31,9 @@ learning_rate = 5e-5
 #最大语句长度
 max_length=128
 #bert预训练模型名
-pretrained_model_name = 'bert-base-chinese'
+pretrained_model_name = 'hfl/chinese-roberta-wwm-ext'
+#KL 损失默认加权系数
+kl_weight = 5.0
 
 # 标签文件
 label2id_path = os.path.join(processed_data_dir, "label2id.json")
