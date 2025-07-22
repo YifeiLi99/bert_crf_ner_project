@@ -10,7 +10,6 @@ from config import processed_data_dir, label2id_path, weights_dir, logs_dir, num
     max_length, pretrained_model_name, DEVICE
 import json
 from tqdm import tqdm
-import numpy as np
 from sklearn.metrics import f1_score, classification_report, confusion_matrix
 
 # ---------------------- 参数 ----------------------
@@ -114,8 +113,9 @@ def evaluate():
     return avg_loss, f1
 
 
+# --------------------- 主程序 -------------------------
 if __name__ == "__main__":
-    print("\n========== Start Training ==========")
+    print("\n================== 训练开始 ==================")
     best_val_loss = float('inf')
 
     for epoch in range(num_epochs):
@@ -149,19 +149,19 @@ if __name__ == "__main__":
 
         if val_loss < best_val_loss:
             torch.save(model.state_dict(), CHECKPOINT_PATH)
-            print(f"\n✅ New best model saved to {CHECKPOINT_PATH}")
+            print(f"\n最佳模型已保存至{CHECKPOINT_PATH}")
             best_val_loss = val_loss
 
         if early_stopper.step(val_loss):
-            print(f"✅ Validation Loss improved to {val_loss:.4f}")
+            print(f"val loss 提升至{val_loss:.4f}")
         else:
-            print(f"❗ No improvement for {early_stopper.counter} epoch(s)")
+            print(f"注意！已有{early_stopper.counter}个epoch无提升")
 
         if early_stopper.should_stop():
-            print("⛔ Early stopping triggered")
+            print("启动早停")
             break
 
-    print(f"\n✅ Best validation loss: {best_val_loss:.4f}")
-    print("✅ Training finished")
+    print(f"\n最佳val loss: {best_val_loss:.4f}")
+    print("训练完成")
     tb_writer.close()
     log_file.close()
