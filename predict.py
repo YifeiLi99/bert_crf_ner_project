@@ -3,9 +3,10 @@ from transformers import BertTokenizer
 from model.bert_crf_model import BertCRFModel
 from config import label2id_path, weights_dir, pretrained_model_name, DEVICE
 import json
+import os
 
 # ---------------------- 参数 ----------------------
-MODEL_WEIGHTS = f"{weights_dir}/best_model.pt"
+MODEL_WEIGHTS = os.path.join(weights_dir, 'best_model004_final.pt')
 
 # ---------------------- 加载 label2id 和 id2label ----------------------
 with open(label2id_path, 'r', encoding='utf-8') as f:
